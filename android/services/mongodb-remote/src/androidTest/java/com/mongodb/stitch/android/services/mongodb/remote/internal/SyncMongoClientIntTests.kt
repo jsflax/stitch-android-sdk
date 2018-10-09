@@ -916,8 +916,8 @@ class SyncMongoClientIntTests : BaseStitchAndroidIntTest() {
 
         testSync.configure(
             DefaultSyncConflictResolvers.remoteWins(),
-            ChangeEventListener { _, _ ->  },
-            ErrorListener { _, _ ->  }
+            ChangeEventListener { _, _ -> },
+            ErrorListener { _, _ -> }
         )
 
         Assert.assertTrue((mongoClient as RemoteMongoClientImpl).dataSynchronizer.isRunning)

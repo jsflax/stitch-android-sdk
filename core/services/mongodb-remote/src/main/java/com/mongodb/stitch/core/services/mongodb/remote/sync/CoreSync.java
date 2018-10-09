@@ -22,10 +22,10 @@ import com.mongodb.stitch.core.services.mongodb.remote.RemoteUpdateResult;
 
 import java.util.Set;
 
+import javax.annotation.Nonnull;
+
 import org.bson.BsonValue;
 import org.bson.conversions.Bson;
-
-import javax.annotation.Nonnull;
 
 /**
  * A set of synchronization related operations for a collection.

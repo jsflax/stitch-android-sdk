@@ -61,6 +61,8 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import javax.annotation.Nonnull;
+
 import org.bson.BsonArray;
 import org.bson.BsonBoolean;
 import org.bson.BsonDocument;
@@ -72,8 +74,6 @@ import org.bson.codecs.configuration.CodecRegistries;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.bson.diagnostics.Logger;
 import org.bson.diagnostics.Loggers;
-
-import javax.annotation.Nonnull;
 
 /**
  * DataSynchronizer handles the bidirectional synchronization of documents between a local MongoDB
@@ -211,9 +211,9 @@ public class DataSynchronizer implements NetworkMonitor.StateListener {
                             final Codec<T> codec) {
     if (conflictHandler == null) {
       logger.warn(
-          "Invalid configuration: conflictHandler should not be null. " +
-              "The DataSynchronizer will not begin syncing until a ConflictHandler has been " +
-              "provided");
+          "Invalid configuration: conflictHandler should not be null. "
+              + "The DataSynchronizer will not begin syncing until a ConflictHandler has been "
+              + "provided.");
       return;
     }
 
@@ -1180,7 +1180,7 @@ public class DataSynchronizer implements NetworkMonitor.StateListener {
    * @param namespace the namespace to get the config for.
    * @return the namespace config for the namespace
    */
-  NamespaceSynchronizationConfig getNamespaceConfig(MongoNamespace namespace) {
+  NamespaceSynchronizationConfig getNamespaceConfig(final MongoNamespace namespace) {
     return this.syncConfig.getNamespaceConfig(namespace);
   }
 

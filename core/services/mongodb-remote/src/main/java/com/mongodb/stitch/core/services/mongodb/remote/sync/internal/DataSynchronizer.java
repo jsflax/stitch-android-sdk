@@ -103,6 +103,8 @@ public class DataSynchronizer implements NetworkMonitor.StateListener {
 
   private InstanceSynchronizationConfig syncConfig;
   private boolean syncThreadEnabled = true;
+  private boolean isConfigured = false;
+  private boolean isRunning = false;
   private Thread syncThread;
   private long logicalT = 0; // The current logical time or sync iteration.
 
@@ -206,13 +208,27 @@ public class DataSynchronizer implements NetworkMonitor.StateListener {
                             final ChangeEventListener<T> changeEventListener,
                             final ErrorListener errorListener,
                             final Codec<T> codec) {
-    this.errorListener = errorListener;
-    this.syncConfig.getNamespaceConfig(namespace).configure(
-        conflictHandler,
-        changeEventListener,
-        codec
-    );
-    this.triggerListeningToNamespace(namespace);
+    syncLock.lock();
+    try {
+      this.isConfigured = true;
+      this.errorListener = errorListener;
+
+      this.syncConfig.getNamespaceConfig(namespace).configure(
+          conflictHandler,
+          changeEventListener,
+          codec
+      );
+    } finally {
+      syncLock.unlock();
+    }
+
+    if (!isRunning) {
+      this.start();
+    }
+
+    if (!instanceChangeStreamListener.isOpen(namespace)) {
+      this.triggerListeningToNamespace(namespace);
+    }
   }
 
   /**
@@ -221,7 +237,7 @@ public class DataSynchronizer implements NetworkMonitor.StateListener {
   public void start() {
     syncLock.lock();
     try {
-      if (syncThread != null) {
+      if (syncThread != null || !this.isConfigured) {
         return;
       }
       instanceChangeStreamListener.start();
@@ -231,6 +247,7 @@ public class DataSynchronizer implements NetworkMonitor.StateListener {
           logger));
       if (syncThreadEnabled) {
         syncThread.start();
+        isRunning = true;
       }
     } finally {
       syncLock.unlock();
@@ -263,6 +280,7 @@ public class DataSynchronizer implements NetworkMonitor.StateListener {
         return;
       }
       syncThread = null;
+      isRunning = false;
     } finally {
       syncLock.unlock();
     }
@@ -1139,6 +1157,16 @@ public class DataSynchronizer implements NetworkMonitor.StateListener {
   }
 
   /**
+   * Returns the namespace config for a given namespace
+   *
+   * @param namespace the namespace to get the config for.
+   * @return the namespace config for the namespace
+   */
+  NamespaceSynchronizationConfig getNamespaceConfig(MongoNamespace namespace) {
+    return this.syncConfig.getNamespaceConfig(namespace);
+  }
+
+  /**
    * Returns the set of synchronized documents in a namespace.
    *
    * @param namespace the namespace to get synchronized documents for.
@@ -1466,7 +1494,7 @@ public class DataSynchronizer implements NetworkMonitor.StateListener {
     emitEvent(documentId, changeEventForLocalDelete(namespace, documentId, false));
   }
 
-  private void triggerListeningToNamespace(final MongoNamespace namespace) {
+  void triggerListeningToNamespace(final MongoNamespace namespace) {
     syncLock.lock();
     try {
       final NamespaceSynchronizationConfig nsConfig = this.syncConfig.getNamespaceConfig(namespace);
@@ -1490,6 +1518,24 @@ public class DataSynchronizer implements NetworkMonitor.StateListener {
     } finally {
       syncLock.unlock();
     }
+  }
+
+  /**
+   * Whether or not the DataSynchronizer is running in the background.
+   *
+   * @return true if running, false if not
+   */
+  boolean isRunning() {
+    return isRunning;
+  }
+
+  /**
+   * Whether or not the DataSynchronizer has been configured
+   *
+   * @return true if configured, false if not
+   */
+  boolean isConfigured() {
+    return isConfigured;
   }
 
   public boolean areAllStreamsOpen() {

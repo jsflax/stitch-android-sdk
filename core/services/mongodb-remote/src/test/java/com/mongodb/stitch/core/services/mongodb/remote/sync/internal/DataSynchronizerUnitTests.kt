@@ -18,6 +18,7 @@ import com.mongodb.stitch.core.services.mongodb.remote.sync.ErrorListener
 import com.mongodb.stitch.server.services.mongodb.local.internal.ServerEmbeddedMongoClientFactory
 import org.bson.BsonDocument
 import org.bson.BsonObjectId
+
 import org.bson.codecs.BsonDocumentCodec
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -71,13 +72,14 @@ class DataSynchronizerUnitTests {
             StitchServiceRoutes("foo"),
             BsonUtils.DEFAULT_CODEC_REGISTRY)
     )
-    private val remoteClient = CoreRemoteMongoClientImpl(
+
+    private val remoteClient = spy(CoreRemoteMongoClientImpl(
         service,
         instanceKey,
         localClient,
         networkMonitor,
         authMonitor
-    )
+    ))
 
     @Before
     fun setup() {

@@ -31,6 +31,8 @@ import java.util.Set;
 import org.bson.BsonValue;
 import org.bson.conversions.Bson;
 
+import javax.annotation.Nonnull;
+
 /**
  * A set of synchronization related operations for a collection
  */
@@ -42,7 +44,7 @@ public class SyncImpl<DocumentT> implements Sync<DocumentT> {
   }
 
   @Override
-  public void configure(final ConflictHandler<DocumentT> conflictResolver,
+  public void configure(@Nonnull final ConflictHandler<DocumentT> conflictResolver,
                         final ChangeEventListener<DocumentT> changeEventListener,
                         final ErrorListener errorListener) {
     this.proxy.configure(conflictResolver, changeEventListener, errorListener);

@@ -13,9 +13,11 @@ import com.mongodb.stitch.core.admin.services.rules.RuleCreator
 import com.mongodb.stitch.core.auth.providers.anonymous.AnonymousCredential
 import com.mongodb.stitch.core.internal.common.Callback
 import com.mongodb.stitch.core.internal.common.OperationResult
+import com.mongodb.stitch.core.services.mongodb.remote.sync.ChangeEventListener
 import com.mongodb.stitch.core.services.mongodb.remote.sync.ConflictHandler
 import com.mongodb.stitch.core.services.mongodb.remote.sync.internal.ChangeEvent
 import com.mongodb.stitch.core.services.mongodb.remote.sync.DefaultSyncConflictResolvers
+import com.mongodb.stitch.core.services.mongodb.remote.sync.ErrorListener
 import org.bson.BsonDocument
 import org.bson.BsonObjectId
 import org.bson.BsonValue
@@ -898,6 +900,27 @@ class SyncMongoClientIntTests : BaseStitchAndroidIntTest() {
                     withoutVersionId(
                             withoutId(Tasks.await(testSync.find(Document("_id", result.insertedId)).first())!!)))
         }
+    }
+
+    @Test
+    fun testConfigure() {
+        val testSync = getTestSync()
+
+        (mongoClient as RemoteMongoClientImpl).dataSynchronizer.enableSyncThread()
+        Assert.assertFalse((mongoClient as RemoteMongoClientImpl).dataSynchronizer.isRunning)
+
+        val docToInsert = Document("hello", "world")
+        Tasks.await(testSync.insertOneAndSync(docToInsert))
+
+        Assert.assertFalse((mongoClient as RemoteMongoClientImpl).dataSynchronizer.isRunning)
+
+        testSync.configure(
+            DefaultSyncConflictResolvers.remoteWins(),
+            ChangeEventListener { _, _ ->  },
+            ErrorListener { _, _ ->  }
+        )
+
+        Assert.assertTrue((mongoClient as RemoteMongoClientImpl).dataSynchronizer.isRunning)
     }
 
     private fun streamAndSync() {

@@ -28,6 +28,8 @@ import java.util.Set;
 import org.bson.BsonValue;
 import org.bson.conversions.Bson;
 
+import javax.annotation.Nonnull;
+
 /**
  * A set of synchronization related operations for a collection.
  *
@@ -43,7 +45,7 @@ public interface Sync<DocumentT> {
    * @param errorListener the error listener to invoke when an irrecoverable error happens
    *                      during data synchronization
    */
-  void configure(final ConflictHandler<DocumentT> conflictResolver,
+  void configure(@Nonnull final ConflictHandler<DocumentT> conflictResolver,
                  final ChangeEventListener<DocumentT> changeEventListener,
                  final ErrorListener errorListener);
 

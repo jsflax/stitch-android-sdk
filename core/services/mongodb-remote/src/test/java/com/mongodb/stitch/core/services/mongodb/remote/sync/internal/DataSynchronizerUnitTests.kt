@@ -5,7 +5,6 @@ import com.mongodb.stitch.core.auth.internal.StitchAuthRequestClient
 import com.mongodb.stitch.core.internal.common.AuthMonitor
 import com.mongodb.stitch.core.internal.common.BsonUtils
 import com.mongodb.stitch.core.internal.net.NetworkMonitor
-import com.mongodb.stitch.core.internal.net.Stream
 import com.mongodb.stitch.core.services.internal.CoreStitchServiceClient
 import com.mongodb.stitch.core.services.internal.CoreStitchServiceClientImpl
 import com.mongodb.stitch.core.services.internal.StitchServiceRoutes
@@ -19,7 +18,6 @@ import com.mongodb.stitch.core.services.mongodb.remote.sync.ErrorListener
 import com.mongodb.stitch.server.services.mongodb.local.internal.ServerEmbeddedMongoClientFactory
 import org.bson.BsonDocument
 import org.bson.BsonObjectId
-import org.bson.Document
 import org.bson.codecs.BsonDocumentCodec
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -29,8 +27,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.mockito.ArgumentMatchers.any
-import org.mockito.ArgumentMatchers.anyList
-import org.mockito.ArgumentMatchers.anyString
 import org.mockito.Mockito
 import org.mockito.Mockito.`when`
 import org.mockito.Mockito.mock
@@ -68,14 +64,14 @@ class DataSynchronizerUnitTests {
         )
     }
 
-    val instanceKey = "${Random().nextInt()}"
-    val service = spy(
+    private val instanceKey = "${Random().nextInt()}"
+    private val service = spy(
         CoreStitchServiceClientImpl(
             Mockito.mock(StitchAuthRequestClient::class.java),
             StitchServiceRoutes("foo"),
             BsonUtils.DEFAULT_CODEC_REGISTRY)
     )
-    val remoteClient = CoreRemoteMongoClientImpl(
+    private val remoteClient = CoreRemoteMongoClientImpl(
         service,
         instanceKey,
         localClient,
@@ -140,30 +136,28 @@ class DataSynchronizerUnitTests {
 
     @Test
     fun testConfigure() {
-        var ds = DataSynchronizer(
+        val dataSynchronizer = spy(DataSynchronizer(
             instanceKey,
             service,
             localClient,
             remoteClient,
             networkMonitor,
             authMonitor
-        )
+        ))
 
-        ds = spy(ds)
-
-        assertFalse(ds.isConfigured)
-        assertFalse(ds.isRunning)
+        assertFalse(dataSynchronizer.isConfigured)
+        assertFalse(dataSynchronizer.isRunning)
 
         val conflictHandler = mock(ConflictHandler::class.java) as ConflictHandler<BsonDocument>
         val changeEventListener = mock(ChangeEventListener::class.java) as ChangeEventListener<BsonDocument>
         val errorListener = mock(ErrorListener::class.java)
         val bsonCodec = BsonDocumentCodec()
 
-        val nsConfig: NamespaceSynchronizationConfig = ds.getNamespaceConfig(namespace)
+        val nsConfig: NamespaceSynchronizationConfig = dataSynchronizer.getNamespaceConfig(namespace)
 
         nsConfig.addSynchronizedDocument(namespace, BsonObjectId())
         assertNull(nsConfig.namespaceListenerConfig)
-        ds.configure(namespace, conflictHandler, changeEventListener, errorListener, bsonCodec)
+        dataSynchronizer.configure(namespace, conflictHandler, changeEventListener, errorListener, bsonCodec)
 
         verify(service, times(1)).streamFunction<ChangeEvent<BsonDocument>>(any(), any(), any())
 
@@ -174,21 +168,18 @@ class DataSynchronizerUnitTests {
         verify(changeEventListener, times(1)).onEvent(any(), any())
         assertEquals(nsConfig.namespaceListenerConfig.documentCodec, bsonCodec)
 
-        verify(ds, times(1)).triggerListeningToNamespace(any())
-        verify(ds, times(1)).start()
+        verify(dataSynchronizer, times(1)).triggerListeningToNamespace(any())
+        verify(dataSynchronizer, times(1)).start()
 
-        assertTrue(ds.isRunning)
-        assertTrue(ds.isConfigured)
+        assertTrue(dataSynchronizer.isRunning)
+        assertTrue(dataSynchronizer.isConfigured)
 
-        ds.configure(namespace, conflictHandler, changeEventListener, errorListener, bsonCodec)
+        dataSynchronizer.configure(namespace, conflictHandler, changeEventListener, errorListener, bsonCodec)
 
-        // TODO: STITCH-1957 this should only be called once,
-        // TODO: however we cannot appropriately check if the stream has begun
-        // TODO: without attaining the lock, thereby created a possible race here
-        // verify(ds, times(1)).triggerListeningToNamespace(any())
-        verify(ds, times(1)).start()
+        verify(dataSynchronizer, times(1)).triggerListeningToNamespace(any())
+        verify(dataSynchronizer, times(1)).start()
 
-        assertTrue(ds.isRunning)
-        assertTrue(ds.isConfigured)
+        assertTrue(dataSynchronizer.isRunning)
+        assertTrue(dataSynchronizer.isConfigured)
     }
 }

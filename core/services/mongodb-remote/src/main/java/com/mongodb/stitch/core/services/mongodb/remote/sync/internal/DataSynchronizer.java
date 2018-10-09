@@ -73,6 +73,8 @@ import org.bson.codecs.configuration.CodecRegistry;
 import org.bson.diagnostics.Logger;
 import org.bson.diagnostics.Loggers;
 
+import javax.annotation.Nonnull;
+
 /**
  * DataSynchronizer handles the bidirectional synchronization of documents between a local MongoDB
  * and a remote MongoDB (via Stitch). It also expose CRUD operations to interact with synchronized
@@ -202,32 +204,39 @@ public class DataSynchronizer implements NetworkMonitor.StateListener {
     }
   }
 
-
-  public <T> void configure(final MongoNamespace namespace,
-                            final ConflictHandler<T> conflictHandler,
+  public <T> void configure(@Nonnull final MongoNamespace namespace,
+                            @Nonnull final ConflictHandler<T> conflictHandler,
                             final ChangeEventListener<T> changeEventListener,
                             final ErrorListener errorListener,
                             final Codec<T> codec) {
-    syncLock.lock();
-    try {
-      this.isConfigured = true;
-      this.errorListener = errorListener;
+    if (conflictHandler == null) {
+      logger.warn(
+          "Invalid configuration: conflictHandler should not be null. " +
+              "The DataSynchronizer will not begin syncing until a ConflictHandler has been " +
+              "provided");
+      return;
+    }
 
-      this.syncConfig.getNamespaceConfig(namespace).configure(
-          conflictHandler,
-          changeEventListener,
-          codec
-      );
-    } finally {
-      syncLock.unlock();
+    this.errorListener = errorListener;
+
+    this.syncConfig.getNamespaceConfig(namespace).configure(
+        conflictHandler,
+        changeEventListener,
+        codec
+    );
+
+    if (!this.isConfigured) {
+      syncLock.lock();
+      try {
+        this.isConfigured = true;
+      } finally {
+        syncLock.unlock();
+      }
+      this.triggerListeningToNamespace(namespace);
     }
 
     if (!isRunning) {
       this.start();
-    }
-
-    if (!instanceChangeStreamListener.isOpen(namespace)) {
-      this.triggerListeningToNamespace(namespace);
     }
   }
 
@@ -249,6 +258,15 @@ public class DataSynchronizer implements NetworkMonitor.StateListener {
         syncThread.start();
         isRunning = true;
       }
+    } finally {
+      syncLock.unlock();
+    }
+  }
+
+  public void enableSyncThread() {
+    syncLock.lock();
+    try {
+      syncThreadEnabled = true;
     } finally {
       syncLock.unlock();
     }
@@ -1525,7 +1543,7 @@ public class DataSynchronizer implements NetworkMonitor.StateListener {
    *
    * @return true if running, false if not
    */
-  boolean isRunning() {
+  public boolean isRunning() {
     return isRunning;
   }
 
